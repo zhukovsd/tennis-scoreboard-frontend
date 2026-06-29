@@ -106,6 +106,107 @@ function initMatchScorePage() {
     }
 }
 
+function initMatchesPage() {
+    var currentFilter = '';
+    var totalPages = 1;
+
+    $(function () {
+        loadMatches(1);
+
+        $('#filter-form').on('submit', function (e) {
+            e.preventDefault();
+            currentFilter = $('#filter-input').val().trim();
+            loadMatches(1);
+        });
+
+        $(document).on('click', '.page-link', function (e) {
+            e.preventDefault();
+            var page = parseInt($(this).data('page'));
+            loadMatches(page);
+        });
+
+        $('#prev-page').on('click', function (e) {
+            e.preventDefault();
+            var currentPage = parseInt($('#pagination').data('current-page'));
+            if (currentPage > 1) loadMatches(currentPage - 1);
+        });
+
+        $('#next-page').on('click', function (e) {
+            e.preventDefault();
+            var currentPage = parseInt($('#pagination').data('current-page'));
+            if (currentPage < totalPages) loadMatches(currentPage + 1);
+        });
+    });
+
+    function loadMatches(page) {
+        var params = {page: page};
+        if (currentFilter) {
+            params.player_name = currentFilter;
+        }
+
+        $.get(HOST + 'matches', params, function (data) {
+            renderMatches(data);
+        }).fail(function (xhr) {
+            var message = xhr.responseJSON
+                ? xhr.responseJSON.message
+                : 'Failed to load matches.';
+            alert(message);
+        });
+    }
+
+    function renderMatches(data) {
+        var matches = data.matches;
+        var currentPage = data.currentPage;
+        totalPages = data.totalPages;
+
+        $('#matches-body tr:not(#no-matches-row)').remove();
+
+        if (!matches || matches.length === 0) {
+            $('#no-matches-row').show();
+            $('#pagination').hide();
+            return;
+        }
+
+        $('#no-matches-row').hide();
+
+        $.each(matches, function (_, match) {
+            var row = '<tr>' +
+                '<td>' + escapeHtml(match.firstPlayerName) + '</td>' +
+                '<td>' + escapeHtml(match.secondPlayerName) + '</td>' +
+                '<td><span class="winner-name-td">' + escapeHtml(match.winnerName) + '</span></td>' +
+                '</tr>';
+            $('#matches-body').append(row);
+        });
+
+        if (totalPages > 1) {
+            $('#pagination').show().data('current-page', currentPage);
+            renderPagination(currentPage);
+        } else {
+            $('#pagination').hide();
+        }
+    }
+
+    function renderPagination(currentPage) {
+        var range = 2;
+        var start = Math.max(1, currentPage - range);
+        var end = Math.min(totalPages, currentPage + range);
+
+        var html = '';
+        for (var i = start; i <= end; i++) {
+            if (i === currentPage) {
+                html += '<a class="num-page current" href="#">' + i + '</a>';
+            } else {
+                html += '<a class="num-page page-link" href="#" data-page="' + i + '">' + i + '</a>';
+            }
+        }
+        $('#page-numbers').html(html);
+    }
+
+    function escapeHtml(str) {
+        return $('<span>').text(str).html();
+    }
+}
+
 $(function () {
     const navToggle = document.querySelector(".nav-toggle");
     const navLinks = document.querySelector(".nav-links");
@@ -119,5 +220,8 @@ $(function () {
     }
     if ($('#score-body').length) {
         initMatchScorePage();
+    }
+    if ($('#matches-body').length) {
+        initMatchesPage();
     }
 });
